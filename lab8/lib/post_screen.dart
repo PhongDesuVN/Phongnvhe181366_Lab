@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http; // thư viện gửi yêu cầu lấy dữ liệu từ mạng internet
-import 'dart:convert'; // thư viện dùng hàm jsondecode để giải mã chuỗi json
+import 'package:http/http.dart' as http; // thư viện gọi API
+import 'dart:convert'; // thư viện giải mã JSON
 
-// khuôn mẫu dữ liệu bài viết
+// 1. Model dữ liệu
 class Post {
   int id;
   String title;
@@ -14,32 +14,27 @@ class Post {
     required this.body,
   });
 
-  // factory tạo đối tượng post từ map json
+  // factory khởi tạo đối tượng từ Map JSON
   factory Post.fromJson(Map<String, dynamic> json) {
     return Post(
       id: json['id'] as int,
-      title: json['title'].toString(), // ép sang chuỗi cho an toàn
+      title: json['title'].toString(),
       body: json['body'].toString(),
     );
   }
 }
 
-// lớp gọi api lấy dữ liệu
+// 2. Class gọi API (Service Layer)
 class ApiService {
-  // async và future dùng cho hàm xử lý mất thời gian chờ dữ liệu từ mạng
   Future<List<Post>> fetchPosts() async {
     Uri url = Uri.parse('https://jsonplaceholder.typicode.com/posts');
-
-    // await tạm dừng đợi máy chủ phản hồi
     var response = await http.get(url);
 
-    // statuscode == 200 là lấy dữ liệu thành công
     if (response.statusCode == 200) {
-      // jsondecode chuyển chuỗi chữ thành danh sách mảng dữ liệu
-      List<dynamic> rawList = jsonDecode(response.body);
+      List<dynamic> rawList = jsonDecode(response.body); // giải mã chuỗi JSON
       List<Post> postList = [];
 
-      // vòng lặp for duyệt từng phần tử và đổi thành đối tượng post
+      // duyệt mảng JSON thô và chuyển thành List<Post>
       for (int i = 0; i < rawList.length; i = i + 1) {
         Map<String, dynamic> item = rawList[i];
         Post p = Post.fromJson(item);
@@ -48,12 +43,12 @@ class ApiService {
 
       return postList;
     } else {
-      // quăng ra lỗi nếu không lấy được dữ liệu
       throw Exception('Failed to load posts');
     }
   }
 }
 
+// 3. Màn hình danh sách
 class PostScreen extends StatefulWidget {
   @override
   PostScreenState createState() {
@@ -63,13 +58,12 @@ class PostScreen extends StatefulWidget {
 
 class PostScreenState extends State<PostScreen> {
   ApiService apiService = ApiService();
-  late Future<List<Post>> futurePosts; // biến chứa dữ liệu bất đồng bộ cần chờ
+  late Future<List<Post>> futurePosts;
 
   @override
   void initState() {
     super.initState();
-    // gọi lấy dữ liệu ngay khi vừa mở màn hình
-    futurePosts = apiService.fetchPosts();
+    futurePosts = apiService.fetchPosts(); // gọi API 1 lần duy nhất khi mở màn hình
   }
 
   @override
@@ -78,39 +72,55 @@ class PostScreenState extends State<PostScreen> {
       appBar: AppBar(
         title: Text('API Posts List'),
       ),
-      // futurebuilder tự vẽ giao diện theo từng trạng thái tải dữ liệu
+      // FutureBuilder tự động vẽ UI theo 3 trạng thái bất đồng bộ
       body: FutureBuilder<List<Post>>(
         future: futurePosts,
         builder: (context, snapshot) {
-          // 1. kiểm tra khi ứng dụng đang kết nối mạng tải dữ liệu
+          // Trạng thái 1: Đang tải
           if (snapshot.connectionState == ConnectionState.waiting) {
             return Center(
-              child: CircularProgressIndicator(), // xoay tròn tải dữ liệu
+              child: CircularProgressIndicator(),
             );
           }
 
-          // 2. kiểm tra nếu bị lỗi kết nối
+          // Trạng thái 2: Bị lỗi
           if (snapshot.hasError == true) {
             return Center(
               child: Text('Error: ' + snapshot.error.toString()),
             );
           }
 
-          // 3. kiểm tra nếu đã có dữ liệu thành công
+          // Trạng thái 3: Có dữ liệu thành công
           if (snapshot.hasData == true) {
-            List<Post> posts = snapshot.data!; // dấu ! khẳng định dữ liệu không null
+            List<Post> posts = snapshot.data!;
 
             return ListView.builder(
               itemCount: posts.length,
               itemBuilder: (context, index) {
                 Post post = posts[index];
+
                 return Card(
                   child: ListTile(
                     leading: CircleAvatar(
                       child: Text(post.id.toString()),
                     ),
                     title: Text(post.title),
-                    subtitle: Text(post.body),
+                    subtitle: Text(
+                      post.body,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    // Chuyển dữ liệu sang màn hình chi tiết
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) {
+                            return PostDetailScreen(post: post);
+                          },
+                        ),
+                      );
+                    },
                   ),
                 );
               },
@@ -121,6 +131,42 @@ class PostScreenState extends State<PostScreen> {
             child: Text('No data found'),
           );
         },
+      ),
+    );
+  }
+}
+
+// 4. Màn hình chi tiết
+class PostDetailScreen extends StatelessWidget {
+  final Post post;
+
+  PostDetailScreen({required this.post});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: Text('Post Detail #' + post.id.toString()),
+      ),
+      body: Padding(
+        padding: EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start, // Đã sửa tên đúng CrossAxisAlignment
+          children: [
+            Text(
+              post.title,
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            SizedBox(height: 16),
+            Text(
+              post.body,
+              style: TextStyle(fontSize: 16),
+            ),
+          ],
+        ),
       ),
     );
   }

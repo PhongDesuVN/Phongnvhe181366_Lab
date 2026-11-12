@@ -1,0 +1,30 @@
+name: lab12
+description: "Taskly - Lab 12 Performance Optimization & Deployment"
+publish_to: 'none'
+
+# Phiên bản ứng dụng để đóng gói bản Release (Exercise 12.4)
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.11.0
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # Dùng thư viện provider để hỗ trợ Selector giúp giảm rebuild giao diện (Exercise 12.1)
+  provider: ^6.1.2
+
+  # Đã xóa cupertino_icons không cần thiết để giảm dung lượng app (Exercise 12.3 & 12.4)
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+
+flutter:
+  uses-material-design: true
+
+  # Khai báo hình ảnh icon đã được thu nhỏ về 128x128 và xóa các asset thừa (Exercise 12.2)
+  assets:
+    - assets/task_icon.png
